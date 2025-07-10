@@ -170,8 +170,8 @@ def plot_installation_curve(schedule_df, selected_subdivs=None):
             y=subdiv_data['Installers'] * scaling_factor,
             name=f'{subdiv} - Installers (scaled)',
             mode='lines',
-            #line=dict(width=2, dash='dash', color=colors[i % len(colors)])
-            line=dict(width=2, dash='dash', color='red')
+            line=dict(width=2, dash='dash', color=colors[i % len(colors)])
+            #line=dict(width=2, dash='dash', color='red')
 
         ))
     
