@@ -9,7 +9,7 @@ import base64
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
-pio.kaleido.scope._DEFAULT_CHROMIUM_EXECUTABLE = "/usr/bin/chromium"
+#pio.kaleido.scope._DEFAULT_CHROMIUM_EXECUTABLE = "/usr/bin/chromium"
 st.set_page_config(
     page_title=" Plan Predictor",
     layout="wide"
