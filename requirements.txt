@@ -9,3 +9,4 @@ psycopg2-binary
 pymysql
 seaborn
 kaleido
+plotly_get_chrome
