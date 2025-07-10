@@ -8,6 +8,8 @@ import io
 import base64
 import plotly.express as px
 import plotly.graph_objects as go
+import plotly.io as pio
+pio.kaleido.scope.chromium_executable = "/usr/bin/chromium"
 st.set_page_config(
     page_title=" Plan Predictor",
     layout="wide"
