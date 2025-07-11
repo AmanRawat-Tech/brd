@@ -722,13 +722,25 @@ def schedule_page():
 
 
                 st.session_state.schedule_df['Date'] = pd.to_datetime(st.session_state.schedule_df['Date'])
+                days_required_df = (
+                    st.session_state.schedule_df
+                    .groupby('SubDiv')
+                    .agg(
+                        Days_Required=('Date', 'nunique'),
+                        Max_Total_Meter=('Total_Meters', 'max'),
+                        Max_Cummulative=('Cumulative_Meters_Installed', 'max'),
+                        Max_Installer_Required=('Installers', 'max'),
+                        End_Date=('Date', 'max')
+                    )
+                    .reset_index()
+                )
 
-                # Group by SubDiv and count unique dates
-                days_required_df = st.session_state.schedule_df.groupby('SubDiv')['Date'].nunique().reset_index(name='Days_Required')
+                # Convert End_Date to just date (remove time)
+                days_required_df['End_Date'] = days_required_df['End_Date'].dt.date
 
                 # Streamlit display
-                st.subheader("📅 Number of Days Required by Subdivision")
-                st.dataframe(days_required_df, height=300, use_container_width=True)
+                st.subheader("📅 Summary")
+                st.dataframe(days_required_df, use_container_width=True)
 
                 # CSV download
                 csv = days_required_df.to_csv(index=False)
@@ -798,16 +810,25 @@ def schedule_page():
         col1.metric("Total Meters in Schedule", f"{total_meters:,}")
         col2.metric("Scheduled for Installation", f"{installed:,} ({completion_percent:.1f}%)")
 
-        # Calculate and show Days Required by SubDiv
+        st.session_state.schedule_df['Date'] = pd.to_datetime(st.session_state.schedule_df['Date'])
         days_required_df = (
             st.session_state.schedule_df
-            .groupby('SubDiv')['Date']
-            .nunique()
-            .reset_index(name='Days_Required')
+            .groupby('SubDiv')
+            .agg(
+                Days_Required=('Date', 'nunique'),
+                Max_Total_Meter=('Total_Meters', 'max'),
+                Max_Cummulative=('Cumulative_Meters_Installed', 'max'),
+                Max_Installer_Required=('Installers', 'max'),
+                End_Date=('Date', 'max')
+            )
+            .reset_index()
         )
 
-        st.subheader("📅 Number of Days Required by Subdivision")
-        st.dataframe(days_required_df, height=300, use_container_width=True)
+        # Convert End_Date to just date (remove time)
+        days_required_df['End_Date'] = days_required_df['End_Date'].dt.date
+
+        st.subheader("📅 Summary")
+        st.dataframe(days_required_df,use_container_width=True)
 
         csv_days = days_required_df.to_csv(index=False)
         st.download_button(
