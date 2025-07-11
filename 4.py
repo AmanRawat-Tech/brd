@@ -193,16 +193,22 @@ def plot_monthly_installation(schedule_df, selected_subdivs=None):
     monthly_data = df[df['SubDiv'].isin(selected_subdivs)].groupby(
         ['Month', 'Month_Name', 'SubDiv'])['Meters_Installed_Today'].sum().reset_index()
     monthly_data = monthly_data.sort_values('Month').reset_index(drop=True)
-    
+    monthly_data['Label'] = monthly_data['Meters_Installed_Today'].astype(int).astype(str) + ' mtrs'
+
     fig = px.bar(
         monthly_data,
         x='Month_Name',
         y='Meters_Installed_Today',
         color='SubDiv',
         barmode='group',
+        text='Label',
+        # text='Meters_Installed_Today',
+        #monthly_data['Label'] = monthly_data['Meters_Installed_Today'].astype(int).astype(str) + ' mtrs',
+
         title='Monthly Meter Installation',
         labels={'Month_Name': 'Month', 'Meters_Installed_Today': 'Meters Installed'}
     )
+   
     fig.update_layout(
         title=dict(text='Monthly Meter Installation', x=0.5, xanchor='center'),
         template='plotly_white',
@@ -233,37 +239,76 @@ def plot_installer_requirements(schedule_df, selected_subdivs=None):
     
     fig = go.Figure()
     colors = px.colors.qualitative.Plotly
+    # for i, subdiv in enumerate(selected_subdivs):
+    #     sub_data = monthly_installers[monthly_installers['SubDiv'] == subdiv]
+    #     fig.add_trace(go.Scatter(
+    #         x=sub_data['Month_Name'],
+    #         y=sub_data['Avg_Installers'],
+    #         name=f'{subdiv} - Avg Daily',
+    #         mode='lines+markers',
+    #         marker=dict(size=8, color=colors[i % len(colors)]),
+    #         line=dict(width=2, color=colors[i % len(colors)])
+    #     ))
+    #     #--->aman you have change below
+    #     fig.add_trace(go.Scatter(
+    #         x=sub_data['Month_Name'],
+    #         y=sub_data['Max_Installers'],
+    #         name=f'{subdiv} - Peak Daily',
+    #         mode='lines+markers',
+    #         marker=dict(size=8, color=colors[(i + 1) % len(colors)]),
+    #         line=dict(width=2, dash='dash')
+    #     ))
+    
+    # fig.update_layout(
+    #     title=dict(text='Monthly Installer Requirements', x=0.5, xanchor='center'),
+    #     xaxis_title='Month',
+    #     yaxis_title='Installers',
+    #     legend=dict(x=1.05, y=1, xanchor='left', yanchor='top'),
+    #     template='plotly_white',
+    #     height=600,
+    #     margin=dict(t=80, b=50, l=50, r=50),
+    #     xaxis=dict(tickangle=45),
+    #     yaxis=dict(gridcolor='lightgray'),
+    #     hovermode='x unified'
+    # )
     for i, subdiv in enumerate(selected_subdivs):
         sub_data = monthly_installers[monthly_installers['SubDiv'] == subdiv]
+        # fig.add_trace(go.Scatter(
+        #     x=sub_data['Month_Name'],
+        #     y=sub_data['Avg_Installers'],
+        #     name=f'{subdiv} - Avg Daily',
+        #     mode='lines+markers',
+        #     marker=dict(size=8, color=colors[i % len(colors)]),
+        #     line=dict(width=2, color=colors[i % len(colors)])
+        # ))
         fig.add_trace(go.Scatter(
             x=sub_data['Month_Name'],
             y=sub_data['Avg_Installers'],
             name=f'{subdiv} - Avg Daily',
-            mode='lines+markers',
+            mode='lines+markers+text',  # <--- Add 'text' here
+            text=sub_data['Avg_Installers'].round().astype(int).astype(str) ,  # <--- Show the values
+            textposition='top center',  # <--- Position the labels
+            
+
             marker=dict(size=8, color=colors[i % len(colors)]),
             line=dict(width=2, color=colors[i % len(colors)])
         ))
-        fig.add_trace(go.Scatter(
-            x=sub_data['Month_Name'],
-            y=sub_data['Max_Installers'],
-            name=f'{subdiv} - Peak Daily',
-            mode='lines+markers',
-            marker=dict(size=8, color=colors[(i + 1) % len(colors)]),
-            line=dict(width=2, dash='dash')
-        ))
-    
-    fig.update_layout(
-        title=dict(text='Monthly Installer Requirements', x=0.5, xanchor='center'),
-        xaxis_title='Month',
-        yaxis_title='Installers',
-        legend=dict(x=1.05, y=1, xanchor='left', yanchor='top'),
-        template='plotly_white',
-        height=600,
-        margin=dict(t=80, b=50, l=50, r=50),
-        xaxis=dict(tickangle=45),
-        yaxis=dict(gridcolor='lightgray'),
-        hovermode='x unified'
-    )
+
+
+        fig.update_layout(
+            title=dict(text='Monthly Installer Requirements', x=0.5, xanchor='center'),
+            xaxis_title='Month',
+            yaxis_title='Installers',
+            legend=dict(x=1.05, y=1, xanchor='left', yanchor='top'),
+            template='plotly_white',
+            height=600,
+            margin=dict(t=80, b=50, l=50, r=50),
+            xaxis=dict(tickangle=45),
+            yaxis=dict(gridcolor='lightgray'),
+            hovermode='x unified',
+            showlegend=True
+        )
+
     return fig
 
 def plot_cumulative_progress(schedule_df, selected_subdivs=None):
@@ -611,7 +656,7 @@ def schedule_page():
         with col2:
             st.metric("End Date", st.session_state.end_date.strftime('%Y-%m-%d'))
             st.metric("Saturation Threshold", f"{int(st.session_state.saturation_threshold*100)}%")
-            st.metric("Ramp-up Factor", f"{st.session_state.ramp_up_factor*100}%")
+            st.metric("Saturation Factor", f"{st.session_state.ramp_up_factor*100}%")
         with col3:
             st.metric("Total Days", (st.session_state.end_date - st.session_state.start_date).days + 1)
             st.metric("Ramp-down Factor", f"{st.session_state.ramp_down_factor*100}%")
@@ -641,8 +686,9 @@ def schedule_page():
                 installed = st.session_state.schedule_df.groupby('SubDiv')['Cumulative_Meters_Installed'].last().sum()
                 completion_percent = (installed / total_meters) * 100
                 max_installers = st.session_state.schedule_df['Installers'].max()
+                end_date=st.session_state.schedule_df['Date'].max()
                 
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3,col4 = st.columns(4)
                 with col1:
                     st.markdown(f"""
                     <div style="font-size: 14px;">
@@ -664,7 +710,35 @@ def schedule_page():
                         <span style="font-size: 18px;">{max_installers}</span>
                     </div>
                     """, unsafe_allow_html=True)
-                
+                with col4:
+                    st.markdown(f"""
+                    <div style="font-size: 14px;">
+                        <strong>Max End Date</strong><br>
+                        <span style="font-size: 18px;">{end_date}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                st.markdown("---")
+               
+
+
+                st.session_state.schedule_df['Date'] = pd.to_datetime(st.session_state.schedule_df['Date'])
+
+                # Group by SubDiv and count unique dates
+                days_required_df = st.session_state.schedule_df.groupby('SubDiv')['Date'].nunique().reset_index(name='Days_Required')
+
+                # Streamlit display
+                st.subheader("📅 Number of Days Required by Subdivision")
+                st.dataframe(days_required_df, height=300, use_container_width=True)
+
+                # CSV download
+                csv = days_required_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download Days Required as CSV",
+                    data=csv,
+                    file_name="days_required_by_subdivision.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
                 st.markdown("---")
                 st.subheader("Schedule Preview")
                 st.dataframe(st.session_state.schedule_df, height=400, use_container_width=True)
@@ -684,28 +758,79 @@ def schedule_page():
             except Exception as e:
                 st.error(f"❌ Error generating schedule: {str(e)}")
     
+    # elif st.session_state.schedule_df is not None:
+    #     st.subheader("Existing Schedule")
+    #     st.info("A previously generated schedule exists. Regenerate with new parameters or view visualizations.")
+        
+    #     total_meters = st.session_state.schedule_df.groupby('SubDiv')['Total_Meters'].first().sum()
+    #     installed = st.session_state.schedule_df.groupby('SubDiv')['Cumulative_Meters_Installed'].last().sum()
+    #     completion_percent = (installed / total_meters) * 100
+        
+    #     col1, col2 = st.columns(2)
+    #     col1.metric("Total Meters in Schedule", f"{total_meters:,}")
+    #     col2.metric("Scheduled for Installation", f"{installed:,} ({completion_percent:.1f}%)")
+        
+    #     st.dataframe(st.session_state.schedule_df, height=400, use_container_width=True)
+        
+    #     csv = st.session_state.schedule_df.to_csv(index=False)
+    #     st.download_button(
+    #         label="📥 Download Schedule as CSV",
+    #         data=csv,
+    #         file_name="installation_schedule.csv",
+    #         mime="text/csv",
+    #         use_container_width=True
+    #     )
     elif st.session_state.schedule_df is not None:
         st.subheader("Existing Schedule")
         st.info("A previously generated schedule exists. Regenerate with new parameters or view visualizations.")
         
+        # Safely ensure 'Date' column is datetime
+        if not pd.api.types.is_datetime64_any_dtype(st.session_state.schedule_df['Date']):
+            st.session_state.schedule_df['Date'] = pd.to_datetime(st.session_state.schedule_df['Date'])
+
+        # Compute total meters and installed meters
         total_meters = st.session_state.schedule_df.groupby('SubDiv')['Total_Meters'].first().sum()
         installed = st.session_state.schedule_df.groupby('SubDiv')['Cumulative_Meters_Installed'].last().sum()
         completion_percent = (installed / total_meters) * 100
         
+        # Show metrics
         col1, col2 = st.columns(2)
         col1.metric("Total Meters in Schedule", f"{total_meters:,}")
         col2.metric("Scheduled for Installation", f"{installed:,} ({completion_percent:.1f}%)")
-        
+
+        # Calculate and show Days Required by SubDiv
+        days_required_df = (
+            st.session_state.schedule_df
+            .groupby('SubDiv')['Date']
+            .nunique()
+            .reset_index(name='Days_Required')
+        )
+
+        st.subheader("📅 Number of Days Required by Subdivision")
+        st.dataframe(days_required_df, height=300, use_container_width=True)
+
+        csv_days = days_required_df.to_csv(index=False)
+        st.download_button(
+            label="📥 Download Days Required as CSV",
+            data=csv_days,
+            file_name="days_required_by_subdivision.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+        st.subheader("📋 Schedule Preview")
         st.dataframe(st.session_state.schedule_df, height=400, use_container_width=True)
-        
-        csv = st.session_state.schedule_df.to_csv(index=False)
+
+        csv_schedule = st.session_state.schedule_df.to_csv(index=False)
         st.download_button(
             label="📥 Download Schedule as CSV",
-            data=csv,
+            data=csv_schedule,
             file_name="installation_schedule.csv",
             mime="text/csv",
             use_container_width=True
         )
+
+        st.markdown("---")
+
 
 def visualizations_page():
     st.title("📈 Visualizations")
@@ -723,11 +848,15 @@ def visualizations_page():
     with st.expander("🔧 Visualization Controls", expanded=True):
         st.subheader("Chart Options")
         plot_options = [
-            "Bell-Shaped Installation Curve",
+            
             "Monthly Meter Installation",
             "Monthly Installer Requirements",
             "Cumulative Progress"
         ]
+        st.session_state.selected_plots = [
+            p for p in st.session_state.get("selected_plots", []) if p in plot_options
+        ]
+
         st.session_state.selected_plots = st.multiselect(
             "Select charts to display:",
             options=plot_options,
@@ -741,16 +870,16 @@ def visualizations_page():
         with st.container():
             st.subheader(plot)
             
-            if plot == "Bell-Shaped Installation Curve":
-                st.markdown("""
-                **Daily installation progress** showing the bell-shaped curve with:
-                - **Solid line**: Meters installed each day
-                - **Dashed line**: Installer count (scaled)
-                """)
-                fig = plot_installation_curve(st.session_state.schedule_df, st.session_state.selected_subdivs)
-                st.plotly_chart(fig, use_container_width=True)
+            # if plot == "Bell-Shaped Installation Curve":
+            #     st.markdown("""
+            #     **Daily installation progress** showing the bell-shaped curve with:
+            #     - **Solid line**: Meters installed each day
+            #     - **Dashed line**: Installer count (scaled)
+            #     """)
+            #     fig = plot_installation_curve(st.session_state.schedule_df, st.session_state.selected_subdivs)
+            #     st.plotly_chart(fig, use_container_width=True)
                 
-            elif plot == "Monthly Meter Installation":
+            if plot == "Monthly Meter Installation":
                 st.markdown("""
                 **Monthly totals** showing installation volume by subdivision.
                 """)
