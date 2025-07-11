@@ -686,7 +686,7 @@ def schedule_page():
                 installed = st.session_state.schedule_df.groupby('SubDiv')['Cumulative_Meters_Installed'].last().sum()
                 completion_percent = (installed / total_meters) * 100
                 max_installers = st.session_state.schedule_df['Installers'].max()
-                end_date=st.session_state.schedule_df['Date'].max()
+                end_date=st.session_state.schedule_df['Date'].max().date()
                 
                 col1, col2, col3,col4 = st.columns(4)
                 with col1:
