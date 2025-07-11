@@ -19,51 +19,158 @@ all_holidays = pd.read_csv('all_holidays.csv')
 slow_days_df = pd.DataFrame(columns=['slow_days'])
 
 # Scheduling function (adapted from provided code)
-def bell_curve_meters_schedule_holiday_cap_all(sub_mru_df, holiday_df, slow_days_df, start_date, end_date,
-                                              base_productivity=7, ramp_up_period=15, saturation_threshold=0.85,
-                                              saturation_factor=0.7, holiday_factor=0.1, slow_period_factor=0.7,
-                                              ramp_up_factor=0.5, ramp_down_factor=0.7, is_slow_day='No'):
-    """
-    Generate subdivision schedule with bell-shaped meter distribution and holiday/installer caps.
-    """
-    # Filter by selected subdivisions
-    selected_subdivs = st.session_state.get('selected_subdivs', sub_mru_df['SubDiv'].unique())
-    sub_mru_df = sub_mru_df[sub_mru_df['SubDiv'].isin(selected_subdivs)]
+# def bell_curve_meters_schedule_holiday_cap_all(sub_mru_df, holiday_df, slow_days_df, start_date, end_date,
+#                                               base_productivity=7, ramp_up_period=15, saturation_threshold=0.85,
+#                                               saturation_factor=0.7, holiday_factor=0.1, slow_period_factor=0.7,
+#                                               ramp_up_factor=0.5, ramp_down_factor=0.7, is_slow_day='No'):
+#     """
+#     Generate subdivision schedule with bell-shaped meter distribution and holiday/installer caps.
+#     """
+#     # Filter by selected subdivisions
+#     selected_subdivs = st.session_state.get('selected_subdivs', sub_mru_df['SubDiv'].unique())
+#     sub_mru_df = sub_mru_df[sub_mru_df['SubDiv'].isin(selected_subdivs)]
     
-    if sub_mru_df.empty:
-        raise ValueError("No data available for the selected subdivisions")
+#     if sub_mru_df.empty:
+#         raise ValueError("No data available for the selected subdivisions")
 
-    start_date = pd.to_datetime(start_date)
-    end_date = pd.to_datetime(end_date)
-    holidays = pd.to_datetime(holiday_df['holidays']).dt.date.values if holiday_df is not None else []
-    slow_days = pd.to_datetime(slow_days_df['slow_days']).dt.date.values if slow_days_df is not None else []
+#     start_date = pd.to_datetime(start_date)
+#     end_date = pd.to_datetime(end_date)
+#     holidays = pd.to_datetime(holiday_df['holidays']).dt.date.values if holiday_df is not None else []
+#     slow_days = pd.to_datetime(slow_days_df['slow_days']).dt.date.values if slow_days_df is not None else []
     
-    total_days = (end_date - start_date).days + 1
-    if total_days <= 0:
-        raise ValueError("End date must be after start date")
+#     total_days = (end_date - start_date).days + 1
+#     if total_days <= 0:
+#         raise ValueError("End date must be after start date")
     
-    ramp_up_end = ramp_up_period / 100
-    ramp_down_start = saturation_threshold
+#     ramp_up_end = ramp_up_period / 100
+#     ramp_down_start = saturation_threshold
     
-    result_columns = ['Date', 'SubDiv', 'SubDivCode', 'Total_Meters', 'Meters_Installed_Today',
-                     'Cumulative_Meters_Installed', 'Installers', 'Productivity', 'Phase', 'Notes']
-    all_results = []
+#     result_columns = ['Date', 'SubDiv', 'SubDivCode', 'Total_Meters', 'Meters_Installed_Today',
+#                      'Cumulative_Meters_Installed', 'Installers', 'Productivity', 'Phase', 'Notes']
+#     all_results = []
     
-    for _, row in sub_mru_df.iterrows():
-        subdiv = row['SubDiv']
-        subdiv_code = row['SubDivCode']
-        total_meters = row['Total_Meters']
-        installed = row['Meters_Installed_Already']
-        remaining = total_meters - installed
+#     for _, row in sub_mru_df.iterrows():
+#         subdiv = row['SubDiv']
+#         subdiv_code = row['SubDivCode']
+#         total_meters = row['Total_Meters']
+#         installed = row['Meters_Installed_Already']
+#         remaining = total_meters - installed
         
+#         x = np.linspace(0, 1, total_days)
+#         mean = 0.4
+#         std_dev = 0.20
+#         bell_curve = np.exp(-((x - mean) ** 2) / (2 * std_dev ** 2))
+#         bell_curve /= bell_curve.sum()
+#         meter_distribution = (bell_curve * remaining).round().astype(int)
+        
+#         # Adjust for exact remaining meters
+#         diff = remaining - meter_distribution.sum()
+#         if diff > 0:
+#             highest_days = np.argsort(bell_curve)[-int(diff):]
+#             meter_distribution[highest_days] += 1
+#         elif diff < 0:
+#             lowest_days = np.argsort(bell_curve)[:int(abs(diff))]
+#             meter_distribution[lowest_days] -= 1
+#             meter_distribution = np.maximum(meter_distribution, 0)
+        
+#         current_date = start_date
+#         cumulative = installed
+#         prev_installers = None
+#         carryover = 0
+        
+#         for d in range(total_days):
+#             if cumulative >= total_meters:
+#                 break
+#             meters_target = meter_distribution[d] + carryover
+#             if meters_target <= 0:
+#                 current_date += pd.Timedelta(days=1)
+#                 continue
+            
+#             timeline_pct = d / total_days
+#             if timeline_pct < ramp_up_end:
+#                 phase = 'Ramp-up'
+#                 phase_factor = ramp_up_factor + (1 - ramp_up_factor) * (timeline_pct / ramp_up_end)
+#             elif timeline_pct > ramp_down_start:
+#                 phase = 'Ramp-down'
+#                 phase_factor = ramp_down_factor
+#             else:
+#                 phase = 'Peak Execution'
+#                 phase_factor = 1.0
+            
+#             is_holiday = current_date.date() in holidays
+#             is_slow_day_flag = (is_slow_day.lower() == 'yes') or (current_date.date() in slow_days)
+#             day_factor = holiday_factor if is_holiday else (slow_period_factor if is_slow_day_flag else 1.0)
+#             actual_productivity = max(1, round(base_productivity * phase_factor * day_factor))
+            
+#             if is_holiday and prev_installers is not None:
+#                 installers_needed = prev_installers
+#             else:
+#                 installers_needed = max(1, int(np.ceil(meters_target / actual_productivity)))
+            
+#             meters_today = min(installers_needed * actual_productivity, total_meters - cumulative)
+#             carryover = meters_target - meters_today if meters_today < meters_target else 0
+#             cumulative += meters_today
+            
+#             notes = []
+#             if phase != 'Peak Execution':
+#                 notes.append(phase)
+#             if is_holiday:
+#                 notes.append('Holiday')
+#             if is_slow_day_flag:
+#                 notes.append('Slow day')
+            
+#             all_results.append({
+#                 'Date': current_date,
+#                 'SubDiv': subdiv,
+#                 'SubDivCode': subdiv_code,
+#                 'Total_Meters': total_meters,
+#                 'Meters_Installed_Today': meters_today,
+#                 'Cumulative_Meters_Installed': cumulative,
+#                 'Installers': installers_needed,
+#                 'Productivity': actual_productivity,
+#                 'Phase': phase,
+#                 'Notes': ', '.join(notes) if notes else None
+#             })
+#             prev_installers = installers_needed
+#             current_date += pd.Timedelta(days=1)
+    
+#     return pd.DataFrame(all_results)
+def bell_curve_meters_schedule_holiday_cap_all(sub_mru_df, holiday_df, slow_days_df,start_date, end_date,
+                                               base_productivity=7, ramp_up_period=15,
+                                               saturation_threshold=0.85, saturation_factor=0.7,
+                                               holiday_factor=0.1, slow_period_factor=0.7,
+                                               ramp_up_factor=0.5, ramp_down_factor=0.7,is_slow_day='No'):
+    """
+    Final approach with guaranteed completion and rounded cumulative at each iteration:
+    1. Generate bell curve for meters
+    2. Smooth installer allocation
+    3. Round cumulative at each step
+    4. Post-process to ensure 100% completion
+    """
+    start_date = pd.to_datetime(start_date)
+    end_date   = pd.to_datetime(end_date)
+    holidays   = pd.to_datetime(holiday_df['holidays']).dt.date.values
+    total_days = (end_date - start_date).days + 1
+    ramp_up_end   = ramp_up_period/100
+    ramp_down_start = saturation_threshold
+    all_results = []
+   
+    for _, row in sub_mru_df.iterrows():
+        subdiv       = row['SubDiv']
+        subdiv_code  = row['SubDivCode']
+        total_meters = row['Total_Meters']
+        installed    = row['Meters_Installed_Already']
+        remaining    = total_meters - installed
+       
+        # Step 1: Generate bell curve for METERS
         x = np.linspace(0, 1, total_days)
         mean = 0.4
         std_dev = 0.20
         bell_curve = np.exp(-((x - mean) ** 2) / (2 * std_dev ** 2))
         bell_curve /= bell_curve.sum()
         meter_distribution = (bell_curve * remaining).round().astype(int)
-        
-        # Adjust for exact remaining meters
+       
+        # Adjust for rounding errors
         diff = remaining - meter_distribution.sum()
         if diff > 0:
             highest_days = np.argsort(bell_curve)[-int(diff):]
@@ -72,69 +179,146 @@ def bell_curve_meters_schedule_holiday_cap_all(sub_mru_df, holiday_df, slow_days
             lowest_days = np.argsort(bell_curve)[:int(abs(diff))]
             meter_distribution[lowest_days] -= 1
             meter_distribution = np.maximum(meter_distribution, 0)
-        
+       
+        # Step 2: Calculate installer requirements and smooth them
+        raw_installers = []
+        productivities = []
         current_date = start_date
-        cumulative = installed
-        prev_installers = None
-        carryover = 0
-        
+       
         for d in range(total_days):
-            if cumulative >= total_meters:
+            meters_target = meter_distribution[d]
+           
+            # Calculate productivity for this day
+            timeline_pct = d/total_days
+            if timeline_pct < ramp_up_end:
+                phase_factor = ramp_up_factor + (1 - ramp_up_factor) * (timeline_pct / ramp_up_end)
+            elif timeline_pct > ramp_down_start:
+                phase_factor = ramp_down_factor
+            else:
+                phase_factor = 1.0
+               
+            is_holiday = current_date.date() in holidays
+            day_factor = holiday_factor if is_holiday else 1.0
+            actual_productivity = base_productivity * phase_factor * day_factor
+            actual_productivity = max(1, round(actual_productivity))
+            productivities.append(actual_productivity)
+           
+            if meters_target <= 0:
+                raw_installers.append(1)
+            else:
+                installers_needed = max(1, int(np.ceil(meters_target / actual_productivity)))
+                raw_installers.append(installers_needed)
+           
+            current_date += pd.Timedelta(days=1)
+       
+        # Step 3: Smooth installer allocation using rolling median
+        window_size = 5
+        smoothed_installers = []
+       
+        for i in range(len(raw_installers)):
+            start_idx = max(0, i - window_size//2)
+            end_idx = min(len(raw_installers), i + window_size//2 + 1)
+            window_values = raw_installers[start_idx:end_idx]
+            smoothed_value = int(np.median(window_values))
+            smoothed_installers.append(max(1, smoothed_value))
+       
+        # Step 4: Generate initial schedule with rounded cumulative at each step
+        current_date = start_date
+        cumulative = float(installed)  # Keep as float for calculations
+        schedule_data = []
+       
+        for d in range(total_days):
+            if int(round(cumulative)) >= total_meters:
                 break
-            meters_target = meter_distribution[d] + carryover
+               
+            meters_target = meter_distribution[d]
             if meters_target <= 0:
                 current_date += pd.Timedelta(days=1)
                 continue
-            
-            timeline_pct = d / total_days
+               
+            # Get phase info
+            timeline_pct = d/total_days
             if timeline_pct < ramp_up_end:
                 phase = 'Ramp-up'
-                phase_factor = ramp_up_factor + (1 - ramp_up_factor) * (timeline_pct / ramp_up_end)
             elif timeline_pct > ramp_down_start:
                 phase = 'Ramp-down'
-                phase_factor = ramp_down_factor
             else:
                 phase = 'Peak Execution'
-                phase_factor = 1.0
-            
+               
+            actual_productivity = productivities[d]
             is_holiday = current_date.date() in holidays
-            is_slow_day_flag = (is_slow_day.lower() == 'yes') or (current_date.date() in slow_days)
-            day_factor = holiday_factor if is_holiday else (slow_period_factor if is_slow_day_flag else 1.0)
-            actual_productivity = max(1, round(base_productivity * phase_factor * day_factor))
-            
-            if is_holiday and prev_installers is not None:
-                installers_needed = prev_installers
-            else:
-                installers_needed = max(1, int(np.ceil(meters_target / actual_productivity)))
-            
-            meters_today = min(installers_needed * actual_productivity, total_meters - cumulative)
-            carryover = meters_target - meters_today if meters_today < meters_target else 0
+           
+            # Use smoothed installer count
+            installers_today = smoothed_installers[d]
+           
+            # Calculate meters installed
+            meters_today = min(installers_today * actual_productivity, total_meters - cumulative)
             cumulative += meters_today
-            
+           
+            # ROUND CUMULATIVE AT EACH ITERATION
+            cumulative_rounded = int(round(cumulative))
+           
+            # Create notes
             notes = []
             if phase != 'Peak Execution':
                 notes.append(phase)
             if is_holiday:
                 notes.append('Holiday')
-            if is_slow_day_flag:
-                notes.append('Slow day')
-            
-            all_results.append({
+               
+            schedule_data.append({
                 'Date': current_date,
                 'SubDiv': subdiv,
                 'SubDivCode': subdiv_code,
                 'Total_Meters': total_meters,
-                'Meters_Installed_Today': meters_today,
-                'Cumulative_Meters_Installed': cumulative,
-                'Installers': installers_needed,
+                'Meters_Installed_Today': int(round(meters_today)),  # Also round daily meters
+                'Cumulative_Meters_Installed': cumulative_rounded,
+                'Installers': installers_today,
                 'Productivity': actual_productivity,
                 'Phase': phase,
                 'Notes': ', '.join(notes) if notes else None
             })
-            prev_installers = installers_needed
+           
             current_date += pd.Timedelta(days=1)
-    
-    return pd.DataFrame(all_results)
+       
+        # Step 5: POST-PROCESS to ensure 100% completion
+        df_temp = pd.DataFrame(schedule_data)
+        total_installed = df_temp['Meters_Installed_Today'].sum()
+        shortfall = remaining - total_installed
+       
+        if shortfall > 0:
+            # print(f"Adjusting for shortfall of {shortfall} meters...")
+           
+            # Find the last 20% of working days (non-holidays) to distribute shortfall
+            non_holiday_mask = ~df_temp['Notes'].str.contains('Holiday', na=False)
+            last_20_percent = int(len(df_temp) * 0.8)
+            adjustment_candidates = df_temp.iloc[last_20_percent:][non_holiday_mask]
+           
+            if len(adjustment_candidates) > 0:
+                # Distribute shortfall across these days
+                per_day_adjustment = shortfall / len(adjustment_candidates)
+               
+                for idx in adjustment_candidates.index:
+                    additional_meters = min(int(round(per_day_adjustment)), shortfall)
+                    current_productivity = df_temp.loc[idx, 'Productivity']
+                    additional_installers = int(np.ceil(additional_meters / current_productivity))
+                   
+                    # Update the record
+                    df_temp.loc[idx, 'Meters_Installed_Today'] += additional_meters
+                    df_temp.loc[idx, 'Installers'] += additional_installers
+                    shortfall -= additional_meters
+                   
+                    if shortfall <= 0:
+                        break
+               
+                # Recalculate cumulative with rounding at each step
+                cumulative_recalc = float(installed)
+                for idx in df_temp.index:
+                    cumulative_recalc += df_temp.loc[idx, 'Meters_Installed_Today']
+                    df_temp.loc[idx, 'Cumulative_Meters_Installed'] = int(round(cumulative_recalc))
+       
+        all_results.extend(df_temp.to_dict('records'))
+           
+    return pd.DataFrame(all_results).sort_values(by='Date')
 
 # Plotting functions (converted to Plotly)
 def plot_installation_curve(schedule_df, selected_subdivs=None):
@@ -656,10 +840,10 @@ def schedule_page():
         with col2:
             st.metric("End Date", st.session_state.end_date.strftime('%Y-%m-%d'))
             st.metric("Saturation Threshold", f"{int(st.session_state.saturation_threshold*100)}%")
-            st.metric("Saturation Factor", f"{st.session_state.ramp_up_factor*100}%")
+            st.metric("Ramp-up Factor", f"{st.session_state.ramp_up_factor*100}%")
         with col3:
             st.metric("Total Days", (st.session_state.end_date - st.session_state.start_date).days + 1)
-            st.metric("Ramp-down Factor", f"{st.session_state.ramp_down_factor*100}%")
+            st.metric("Saturation Factor", f"{st.session_state.ramp_down_factor*100}%")
             st.metric("Holiday Factor", f"{st.session_state.holiday_factor*100}%")
     
     if st.button("✨ Generate Schedule", type="primary", use_container_width=True):
