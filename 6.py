@@ -830,6 +830,198 @@ def data_preview_page():
     st.markdown("---")
     st.success("✅ Data verified! Proceed to the Schedule page to generate your plan.")
 
+# def schedule_page():
+#     st.title("📅 Generate Schedule")
+#     st.markdown("""
+#     Create a meter installation schedule for selected subdivisions using a bell-shaped curve 
+#     with holiday and installer constraints.
+#     """)
+#     st.markdown("---")
+    
+#     if not st.session_state.selected_subdivs:
+#         st.warning("⚠️ Please select at least one subdivision in the sidebar.")
+#         return
+    
+#     with st.expander("🔎 Current Parameters Summary", expanded=True):
+#         col1, col2, col3 = st.columns([3,1,1])
+#         with col1:
+#             st.metric("Start Date", st.session_state.start_date.strftime('%Y-%m-%d'))
+#             st.metric("Base Productivity", f"{st.session_state.base_productivity} meters/installer/day")
+#             st.metric("Ramp-up Period", f"{st.session_state.ramp_up_period}%")
+#             st.metric("Initial Installers", st.session_state.initial_installers)
+#         with col2:
+#             st.metric("End Date", st.session_state.end_date.strftime('%Y-%m-%d'))
+#             st.metric("Saturation Threshold", f"{int(st.session_state.saturation_threshold*100)}%")
+#             st.metric("Ramp-up Factor", f"{st.session_state.ramp_up_factor*100}%")
+#         with col3:
+#             st.metric("Total Days", (st.session_state.end_date - st.session_state.start_date).days + 1)
+#             st.metric("Saturation Factor", f"{st.session_state.ramp_down_factor*100}%")
+#             st.metric("Holiday Factor", f"{st.session_state.holiday_factor*100}%")
+    
+#     if st.button("✨ Generate Schedule", type="primary", use_container_width=True):
+#         with st.spinner("Generating schedule..."):
+#             try:
+#                 st.session_state.schedule_df = bell_curve_meters_schedule_smooth_practical(
+#                     sub_mru_df=st.session_state.data,
+#                     holiday_df=st.session_state.all_holidays,
+#                     start_date=st.session_state.start_date,
+#                     end_date=st.session_state.end_date,
+#                     initial_installers=st.session_state.initial_installers,
+#                     base_productivity=st.session_state.base_productivity,
+#                     ramp_up_period=st.session_state.ramp_up_period,
+#                     saturation_threshold=st.session_state.saturation_threshold,
+#                     ramp_up_factor=st.session_state.ramp_up_factor,
+#                     ramp_down_factor=st.session_state.ramp_down_factor,
+#                     holiday_factor=st.session_state.holiday_factor,
+#                     slow_period_factor=st.session_state.slow_period_factor,
+#                     #max_installer_change_pct=st.session_state.max_installer_change_pct / 100
+#                 )
+                
+#                 # Add Year and Month columns for new graphs
+#                 st.session_state.schedule_df['Year'] = st.session_state.schedule_df['Date'].dt.year
+#                 st.session_state.schedule_df['Month'] = st.session_state.schedule_df['Date'].dt.month
+                
+#                 st.success("Schedule generated successfully!")
+#                 total_meters = st.session_state.schedule_df.groupby('SubDiv')['Total_Meters'].first().sum()
+#                 installed = st.session_state.schedule_df.groupby('SubDiv')['Cumulative_Meters_Installed'].last().sum()
+#                 completion_percent = (installed / total_meters) * 100
+#                 max_installers = st.session_state.schedule_df['Installers'].max()
+#                 end_date = st.session_state.schedule_df['Date'].max().date()
+                
+#                 col1, col2, col3, col4 = st.columns(4)
+#                 with col1:
+#                     st.markdown(f"""
+#                     <div style="font-size: 14px;">
+#                         <strong>Total Meters</strong><br>
+#                         <span style="font-size: 18px;">{total_meters:,}</span>
+#                     </div>
+#                     """, unsafe_allow_html=True)
+#                 with col2:
+#                     st.markdown(f"""
+#                     <div style="font-size: 14px;">
+#                         <strong>Will Be Installed</strong><br>
+#                         <span style="font-size: 18px;">{installed:,} ({completion_percent:.1f}%)</span>
+#                     </div>
+#                     """, unsafe_allow_html=True)
+#                 with col3:
+#                     st.markdown(f"""
+#                     <div style="font-size: 14px;">
+#                         <strong>Peak Installers Needed</strong><br>
+#                         <span style="font-size: 18px;">{max_installers}</span>
+#                     </div>
+#                     """, unsafe_allow_html=True)
+#                 with col4:
+#                     st.markdown(f"""
+#                     <div style="font-size: 14px;">
+#                         <strong>Max End Date</strong><br>
+#                         <span style="font-size: 18px;">{end_date}</span>
+#                     </div>
+#                     """, unsafe_allow_html=True)
+#                 st.markdown("---")
+                
+#                 days_required_df = (
+#                     st.session_state.schedule_df
+#                     .groupby('SubDiv')
+#                     .agg(
+#                         Days_Required=('Date', 'nunique'),
+#                         Max_Total_Meter=('Total_Meters', 'max'),
+#                         Max_Cummulative=('Cumulative_Meters_Installed', 'max'),
+#                         Max_Installer_Required=('Installers', 'max'),
+#                         End_Date=('Date', 'max')
+#                     )
+#                     .reset_index()
+#                 )
+                
+#                 days_required_df['End_Date'] = days_required_df['End_Date'].dt.date
+                
+#                 st.subheader("📅 Summary")
+#                 st.dataframe(days_required_df, use_container_width=True)
+                
+#                 csv = days_required_df.to_csv(index=False)
+#                 st.download_button(
+#                     label="📥 Download Days Required as CSV",
+#                     data=csv,
+#                     file_name="days_required_by_subdivision.csv",
+#                     mime="text/csv",
+#                     use_container_width=True
+#                 )
+#                 st.markdown("---")
+#                 st.subheader("Schedule Preview")
+#                 st.dataframe(st.session_state.schedule_df, height=400, use_container_width=True)
+                
+#                 csv = st.session_state.schedule_df.to_csv(index=False)
+#                 st.download_button(
+#                     label="📥 Download Schedule as CSV",
+#                     data=csv,
+#                     file_name="installation_schedule.csv",
+#                     mime="text/csv",
+#                     use_container_width=True
+#                 )
+                
+#                 st.markdown("---")
+#                 st.success("Navigate to the Visualizations page to explore your schedule graphically!")
+                
+#             except Exception as e:
+#                 st.error(f"❌ Error generating schedule: {str(e)}")
+    
+#     elif st.session_state.schedule_df is not None:
+#         st.subheader("Existing Schedule")
+#         st.info("A previously generated schedule exists. Regenerate with new parameters or view visualizations.")
+        
+#         if not pd.api.types.is_datetime64_any_dtype(st.session_state.schedule_df['Date']):
+#             st.session_state.schedule_df['Date'] = pd.to_datetime(st.session_state.schedule_df['Date'])
+        
+#         # Ensure Year and Month columns exist
+#         st.session_state.schedule_df['Year'] = st.session_state.schedule_df['Date'].dt.year
+#         st.session_state.schedule_df['Month'] = st.session_state.schedule_df['Date'].dt.month
+        
+#         total_meters = st.session_state.schedule_df.groupby('SubDiv')['Total_Meters'].first().sum()
+#         installed = st.session_state.schedule_df.groupby('SubDiv')['Cumulative_Meters_Installed'].last().sum()
+#         completion_percent = (installed / total_meters) * 100
+        
+#         col1, col2 = st.columns(2)
+#         col1.metric("Total Meters in Schedule", f"{total_meters:,}")
+#         col2.metric("Scheduled for Installation", f"{installed:,} ({completion_percent:.1f}%)")
+        
+#         days_required_df = (
+#             st.session_state.schedule_df
+#             .groupby('SubDiv')
+#             .agg(
+#                 Days_Required=('Date', 'nunique'),
+#                 Max_Total_Meter=('Total_Meters', 'max'),
+#                 Max_Cummulative=('Cumulative_Meters_Installed', 'max'),
+#                 Max_Installer_Required=('Installers', 'max'),
+#                 End_Date=('Date', 'max')
+#             )
+#             .reset_index()
+#         )
+        
+#         days_required_df['End_Date'] = days_required_df['End_Date'].dt.date
+        
+#         st.subheader("📅 Summary")
+#         st.dataframe(days_required_df, use_container_width=True)
+        
+#         csv_days = days_required_df.to_csv(index=False)
+#         st.download_button(
+#             label="📥 Download Days Required as CSV",
+#             data=csv_days,
+#             file_name="days_required_by_subdivision.csv",
+#             mime="text/csv",
+#             use_container_width=True
+#         )
+#         st.subheader("📋 Schedule Preview")
+#         st.dataframe(st.session_state.schedule_df, height=400, use_container_width=True)
+        
+#         csv_schedule = st.session_state.schedule_df.to_csv(index=False)
+#         st.download_button(
+#             label="📥 Download Schedule as CSV",
+#             data=csv_schedule,
+#             file_name="installation_schedule.csv",
+#             mime="text/csv",
+#             use_container_width=True
+#         )
+        
+#         st.markdown("---")
 def schedule_page():
     st.title("📅 Generate Schedule")
     st.markdown("""
@@ -861,6 +1053,7 @@ def schedule_page():
     if st.button("✨ Generate Schedule", type="primary", use_container_width=True):
         with st.spinner("Generating schedule..."):
             try:
+                # Generate the full schedule for all subdivisions
                 st.session_state.schedule_df = bell_curve_meters_schedule_smooth_practical(
                     sub_mru_df=st.session_state.data,
                     holiday_df=st.session_state.all_holidays,
@@ -874,19 +1067,40 @@ def schedule_page():
                     ramp_down_factor=st.session_state.ramp_down_factor,
                     holiday_factor=st.session_state.holiday_factor,
                     slow_period_factor=st.session_state.slow_period_factor,
-                    #max_installer_change_pct=st.session_state.max_installer_change_pct / 100
+                    max_installer_change_pct=0.15  # Hardcoded as it was commented out
                 )
-                
+                   #st.session_state.schedule_df = bell_curve_meters_schedule_smooth_practical(
+#                     sub_mru_df=st.session_state.data,
+#                     holiday_df=st.session_state.all_holidays,
+#                     start_date=st.session_state.start_date,
+#                     end_date=st.session_state.end_date,
+#                     initial_installers=st.session_state.initial_installers,
+#                     base_productivity=st.session_state.base_productivity,
+#                     ramp_up_period=st.session_state.ramp_up_period,
+#                     saturation_threshold=st.session_state.saturation_threshold,
+#                     ramp_up_factor=st.session_state.ramp_up_factor,
+#                     ramp_down_factor=st.session_state.ramp_down_factor,
+#                     holiday_factor=st.session_state.holiday_factor,
+#                     slow_period_factor=st.session_state.slow_period_factor,
+#                     #max_installer_change_pct=st.session_state.max_installer_change_pct / 100
+#                 )
                 # Add Year and Month columns for new graphs
                 st.session_state.schedule_df['Year'] = st.session_state.schedule_df['Date'].dt.year
                 st.session_state.schedule_df['Month'] = st.session_state.schedule_df['Date'].dt.month
                 
                 st.success("Schedule generated successfully!")
-                total_meters = st.session_state.schedule_df.groupby('SubDiv')['Total_Meters'].first().sum()
-                installed = st.session_state.schedule_df.groupby('SubDiv')['Cumulative_Meters_Installed'].last().sum()
-                completion_percent = (installed / total_meters) * 100
-                max_installers = st.session_state.schedule_df['Installers'].max()
-                end_date = st.session_state.schedule_df['Date'].max().date()
+                
+                # Filter schedule for selected subdivisions unless all are selected
+                display_df = st.session_state.schedule_df
+                if not st.session_state.is_select_all:
+                    display_df = display_df[display_df['SubDiv'].isin(st.session_state.selected_subdivs)]
+                
+                # Calculate summary metrics for the filtered data
+                total_meters = display_df.groupby('SubDiv')['Total_Meters'].first().sum()
+                installed = display_df.groupby('SubDiv')['Cumulative_Meters_Installed'].last().sum()
+                completion_percent = (installed / total_meters) * 100 if total_meters > 0 else 0
+                max_installers = display_df['Installers'].max()
+                end_date = display_df['Date'].max().date() if not display_df.empty else st.session_state.end_date
                 
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
@@ -919,8 +1133,9 @@ def schedule_page():
                     """, unsafe_allow_html=True)
                 st.markdown("---")
                 
+                # Generate Days Required table for filtered data
                 days_required_df = (
-                    st.session_state.schedule_df
+                    display_df
                     .groupby('SubDiv')
                     .agg(
                         Days_Required=('Date', 'nunique'),
@@ -946,10 +1161,12 @@ def schedule_page():
                     use_container_width=True
                 )
                 st.markdown("---")
-                st.subheader("Schedule Preview")
-                st.dataframe(st.session_state.schedule_df, height=400, use_container_width=True)
                 
-                csv = st.session_state.schedule_df.to_csv(index=False)
+                # Display filtered schedule preview
+                st.subheader("Schedule Preview")
+                st.dataframe(display_df, height=400, use_container_width=True)
+                
+                csv = display_df.to_csv(index=False)
                 st.download_button(
                     label="📥 Download Schedule as CSV",
                     data=csv,
@@ -975,16 +1192,23 @@ def schedule_page():
         st.session_state.schedule_df['Year'] = st.session_state.schedule_df['Date'].dt.year
         st.session_state.schedule_df['Month'] = st.session_state.schedule_df['Date'].dt.month
         
-        total_meters = st.session_state.schedule_df.groupby('SubDiv')['Total_Meters'].first().sum()
-        installed = st.session_state.schedule_df.groupby('SubDiv')['Cumulative_Meters_Installed'].last().sum()
-        completion_percent = (installed / total_meters) * 100
+        # Filter schedule for selected subdivisions unless all are selected
+        display_df = st.session_state.schedule_df
+        if not st.session_state.is_select_all:
+            display_df = display_df[display_df['SubDiv'].isin(st.session_state.selected_subdivs)]
+        
+        # Calculate summary metrics for filtered data
+        total_meters = display_df.groupby('SubDiv')['Total_Meters'].first().sum()
+        installed = display_df.groupby('SubDiv')['Cumulative_Meters_Installed'].last().sum()
+        completion_percent = (installed / total_meters) * 100 if total_meters > 0 else 0
         
         col1, col2 = st.columns(2)
         col1.metric("Total Meters in Schedule", f"{total_meters:,}")
         col2.metric("Scheduled for Installation", f"{installed:,} ({completion_percent:.1f}%)")
         
+        # Generate Days Required table for filtered data
         days_required_df = (
-            st.session_state.schedule_df
+            display_df
             .groupby('SubDiv')
             .agg(
                 Days_Required=('Date', 'nunique'),
@@ -1010,9 +1234,9 @@ def schedule_page():
             use_container_width=True
         )
         st.subheader("📋 Schedule Preview")
-        st.dataframe(st.session_state.schedule_df, height=400, use_container_width=True)
+        st.dataframe(display_df, height=400, use_container_width=True)
         
-        csv_schedule = st.session_state.schedule_df.to_csv(index=False)
+        csv_schedule = display_df.to_csv(index=False)
         st.download_button(
             label="📥 Download Schedule as CSV",
             data=csv_schedule,
