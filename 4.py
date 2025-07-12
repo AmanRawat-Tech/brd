@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 # Set page configuration
 st.set_page_config(
-    page_title="5.py",
+    page_title="streamlit_4.py",
     layout="wide"
 )
 
@@ -501,12 +501,12 @@ def render_sidebar():
                 step=1, 
                 key="initial_installers"
             )
-            max_installer_change_pct = st.slider(
-                "Max Daily Installer Change (%)", 
-                5, 50, 
-                int(st.session_state.get('max_installer_change_pct', 0.15) * 100), 
-                key="max_installer_change_pct"
-            )
+            # max_installer_change_pct = st.slider(
+            #     "Max Daily Installer Change (%)", 
+            #     5, 50, 
+            #     int(st.session_state.get('max_installer_change_pct', 0.15) * 100), 
+            #     key="max_installer_change_pct"
+            # )
             
             st.markdown("**Productivity Settings**")
             base_productivity = st.number_input(
@@ -735,7 +735,7 @@ def schedule_page():
                     ramp_down_factor=st.session_state.ramp_down_factor,
                     holiday_factor=st.session_state.holiday_factor,
                     slow_period_factor=st.session_state.slow_period_factor,
-                    max_installer_change_pct=st.session_state.max_installer_change_pct / 100
+                    #max_installer_change_pct=st.session_state.max_installer_change_pct / 100
                 )
                 
                 st.success("Schedule generated successfully!")
