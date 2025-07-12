@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 # Set page configuration
 st.set_page_config(
-    page_title="Meter Installation Scheduler",
+    page_title="5.py",
     layout="wide"
 )
 
@@ -18,325 +18,214 @@ data = pd.read_csv('data.csv')
 all_holidays = pd.read_csv('all_holidays.csv')
 slow_days_df = pd.DataFrame(columns=['slow_days'])
 
-# Scheduling function (adapted from provided code)
-# def bell_curve_meters_schedule_holiday_cap_all(sub_mru_df, holiday_df, slow_days_df, start_date, end_date,
-#                                               base_productivity=7, ramp_up_period=15, saturation_threshold=0.85,
-#                                               saturation_factor=0.7, holiday_factor=0.1, slow_period_factor=0.7,
-#                                               ramp_up_factor=0.5, ramp_down_factor=0.7, is_slow_day='No'):
-#     """
-#     Generate subdivision schedule with bell-shaped meter distribution and holiday/installer caps.
-#     """
-#     # Filter by selected subdivisions
-#     selected_subdivs = st.session_state.get('selected_subdivs', sub_mru_df['SubDiv'].unique())
-#     sub_mru_df = sub_mru_df[sub_mru_df['SubDiv'].isin(selected_subdivs)]
-    
-#     if sub_mru_df.empty:
-#         raise ValueError("No data available for the selected subdivisions")
-
-#     start_date = pd.to_datetime(start_date)
-#     end_date = pd.to_datetime(end_date)
-#     holidays = pd.to_datetime(holiday_df['holidays']).dt.date.values if holiday_df is not None else []
-#     slow_days = pd.to_datetime(slow_days_df['slow_days']).dt.date.values if slow_days_df is not None else []
-    
-#     total_days = (end_date - start_date).days + 1
-#     if total_days <= 0:
-#         raise ValueError("End date must be after start date")
-    
-#     ramp_up_end = ramp_up_period / 100
-#     ramp_down_start = saturation_threshold
-    
-#     result_columns = ['Date', 'SubDiv', 'SubDivCode', 'Total_Meters', 'Meters_Installed_Today',
-#                      'Cumulative_Meters_Installed', 'Installers', 'Productivity', 'Phase', 'Notes']
-#     all_results = []
-    
-#     for _, row in sub_mru_df.iterrows():
-#         subdiv = row['SubDiv']
-#         subdiv_code = row['SubDivCode']
-#         total_meters = row['Total_Meters']
-#         installed = row['Meters_Installed_Already']
-#         remaining = total_meters - installed
-        
-#         x = np.linspace(0, 1, total_days)
-#         mean = 0.4
-#         std_dev = 0.20
-#         bell_curve = np.exp(-((x - mean) ** 2) / (2 * std_dev ** 2))
-#         bell_curve /= bell_curve.sum()
-#         meter_distribution = (bell_curve * remaining).round().astype(int)
-        
-#         # Adjust for exact remaining meters
-#         diff = remaining - meter_distribution.sum()
-#         if diff > 0:
-#             highest_days = np.argsort(bell_curve)[-int(diff):]
-#             meter_distribution[highest_days] += 1
-#         elif diff < 0:
-#             lowest_days = np.argsort(bell_curve)[:int(abs(diff))]
-#             meter_distribution[lowest_days] -= 1
-#             meter_distribution = np.maximum(meter_distribution, 0)
-        
-#         current_date = start_date
-#         cumulative = installed
-#         prev_installers = None
-#         carryover = 0
-        
-#         for d in range(total_days):
-#             if cumulative >= total_meters:
-#                 break
-#             meters_target = meter_distribution[d] + carryover
-#             if meters_target <= 0:
-#                 current_date += pd.Timedelta(days=1)
-#                 continue
-            
-#             timeline_pct = d / total_days
-#             if timeline_pct < ramp_up_end:
-#                 phase = 'Ramp-up'
-#                 phase_factor = ramp_up_factor + (1 - ramp_up_factor) * (timeline_pct / ramp_up_end)
-#             elif timeline_pct > ramp_down_start:
-#                 phase = 'Ramp-down'
-#                 phase_factor = ramp_down_factor
-#             else:
-#                 phase = 'Peak Execution'
-#                 phase_factor = 1.0
-            
-#             is_holiday = current_date.date() in holidays
-#             is_slow_day_flag = (is_slow_day.lower() == 'yes') or (current_date.date() in slow_days)
-#             day_factor = holiday_factor if is_holiday else (slow_period_factor if is_slow_day_flag else 1.0)
-#             actual_productivity = max(1, round(base_productivity * phase_factor * day_factor))
-            
-#             if is_holiday and prev_installers is not None:
-#                 installers_needed = prev_installers
-#             else:
-#                 installers_needed = max(1, int(np.ceil(meters_target / actual_productivity)))
-            
-#             meters_today = min(installers_needed * actual_productivity, total_meters - cumulative)
-#             carryover = meters_target - meters_today if meters_today < meters_target else 0
-#             cumulative += meters_today
-            
-#             notes = []
-#             if phase != 'Peak Execution':
-#                 notes.append(phase)
-#             if is_holiday:
-#                 notes.append('Holiday')
-#             if is_slow_day_flag:
-#                 notes.append('Slow day')
-            
-#             all_results.append({
-#                 'Date': current_date,
-#                 'SubDiv': subdiv,
-#                 'SubDivCode': subdiv_code,
-#                 'Total_Meters': total_meters,
-#                 'Meters_Installed_Today': meters_today,
-#                 'Cumulative_Meters_Installed': cumulative,
-#                 'Installers': installers_needed,
-#                 'Productivity': actual_productivity,
-#                 'Phase': phase,
-#                 'Notes': ', '.join(notes) if notes else None
-#             })
-#             prev_installers = installers_needed
-#             current_date += pd.Timedelta(days=1)
-    
-#     return pd.DataFrame(all_results)
-
-def bell_curve_meters_schedule_holiday_cap_all(sub_mru_df, holiday_df, slow_days_df, start_date, end_date,
-                                               selected_subdivs=None, base_productivity=7, ramp_up_period=15,
+def bell_curve_meters_schedule_smooth_practical(sub_mru_df, holiday_df, start_date, end_date,
+                                               initial_installers=50,  # NEW PARAMETER
+                                               base_productivity=7, ramp_up_period=15,
                                                saturation_threshold=0.85, saturation_factor=0.7,
                                                holiday_factor=0.1, slow_period_factor=0.7,
-                                               ramp_up_factor=0.5, ramp_down_factor=0.7, is_slow_day='No'):
+                                               ramp_up_factor=0.5, ramp_down_factor=0.7,
+                                               max_installer_change_pct=0.15):  # NEW: Max 15% change per day
     """
-    Final approach with guaranteed completion and rounded cumulative at each iteration:
-    1. Generate bell curve for meters
-    2. Smooth installer allocation
-    3. Round cumulative at each step
-    4. Post-process to ensure 100% completion
-    5. Filter by selected subdivisions
+    Improved approach with:
+    1. Initial installer allocation based on subdivision workload
+    2. Smooth installer transitions (max 15% change per day)
+    3. Gradual shortfall compensation throughout the project
+    4. Practical installer scaling constraints
     """
-    # Filter by selected subdivisions
-    if selected_subdivs is None:
-        selected_subdivs = sub_mru_df['SubDiv'].unique()
-    sub_mru_df = sub_mru_df[sub_mru_df['SubDiv'].isin(selected_subdivs)]
-    
-    if sub_mru_df.empty:
-        raise ValueError("No data available for the selected subdivisions")
-
     start_date = pd.to_datetime(start_date)
-    end_date = pd.to_datetime(end_date)
-    holidays = pd.to_datetime(holiday_df['holidays']).dt.date.values
+    end_date   = pd.to_datetime(end_date)
+    holidays   = pd.to_datetime(holiday_df['holidays']).dt.date.values
     total_days = (end_date - start_date).days + 1
-    if total_days <= 0:
-        raise ValueError("End date must be after start date")
-    
-    ramp_up_end = ramp_up_period / 100
+    ramp_up_end   = ramp_up_period/100
     ramp_down_start = saturation_threshold
+    
+    # Step 1: Calculate initial installer allocation based on workload
+    sub_mru_df = sub_mru_df.copy()
+    sub_mru_df['Remaining_Meters'] = sub_mru_df['Total_Meters'] - sub_mru_df['Meters_Installed_Already']
+    total_remaining = sub_mru_df['Remaining_Meters'].sum()
+    
+    # Allocate initial installers proportionally to remaining meters
+    sub_mru_df['Installer_Allocation'] = (sub_mru_df['Remaining_Meters'] / total_remaining * initial_installers).round().astype(int)
+    
+    # Adjust for rounding errors in allocation
+    allocation_diff = initial_installers - sub_mru_df['Installer_Allocation'].sum()
+    if allocation_diff != 0:
+        sorted_indices = sub_mru_df['Remaining_Meters'].nlargest(abs(allocation_diff)).index
+        for idx in sorted_indices:
+            if allocation_diff > 0:
+                sub_mru_df.loc[idx, 'Installer_Allocation'] += 1
+                allocation_diff -= 1
+            elif allocation_diff < 0 and sub_mru_df.loc[idx, 'Installer_Allocation'] > 1:
+                sub_mru_df.loc[idx, 'Installer_Allocation'] -= 1
+                allocation_diff += 1
+    
     all_results = []
-
+    
     for _, row in sub_mru_df.iterrows():
-        subdiv = row['SubDiv']
-        subdiv_code = row['SubDivCode']
+        subdiv       = row['SubDiv']
+        subdiv_code  = row['SubDivCode']
         total_meters = row['Total_Meters']
-        installed = row['Meters_Installed_Already']
-        remaining = total_meters - installed
-
-        # Step 1: Generate bell curve for METERS
+        installed    = row['Meters_Installed_Already']
+        remaining    = row['Remaining_Meters']
+        initial_installers_subdiv = row['Installer_Allocation']
+        
+        if remaining <= 0:
+            continue
+            
+        # Step 2: Generate bell curve for METERS (target distribution)
         x = np.linspace(0, 1, total_days)
-        mean = 0.4
+        mean = 0.5
         std_dev = 0.20
         bell_curve = np.exp(-((x - mean) ** 2) / (2 * std_dev ** 2))
         bell_curve /= bell_curve.sum()
-        meter_distribution = (bell_curve * remaining).round().astype(int)
-
-        # Adjust for rounding errors
-        diff = remaining - meter_distribution.sum()
-        if diff > 0:
-            highest_days = np.argsort(bell_curve)[-int(diff):]
-            meter_distribution[highest_days] += 1
-        elif diff < 0:
-            lowest_days = np.argsort(bell_curve)[:int(abs(diff))]
-            meter_distribution[lowest_days] -= 1
-            meter_distribution = np.maximum(meter_distribution, 0)
-
-        # Step 2: Calculate installer requirements and smooth them
-        raw_installers = []
+        target_meter_distribution = bell_curve * remaining
+        
+        # Step 3: Calculate ideal installer requirements for each day
+        ideal_installers = []
         productivities = []
         current_date = start_date
-
+        
         for d in range(total_days):
-            meters_target = meter_distribution[d]
-
+            meters_target = target_meter_distribution[d]
+            
             # Calculate productivity for this day
-            timeline_pct = d / total_days
+            timeline_pct = d/total_days
             if timeline_pct < ramp_up_end:
                 phase_factor = ramp_up_factor + (1 - ramp_up_factor) * (timeline_pct / ramp_up_end)
             elif timeline_pct > ramp_down_start:
                 phase_factor = ramp_down_factor
             else:
                 phase_factor = 1.0
-
+                
             is_holiday = current_date.date() in holidays
             day_factor = holiday_factor if is_holiday else 1.0
             actual_productivity = base_productivity * phase_factor * day_factor
             actual_productivity = max(1, round(actual_productivity))
             productivities.append(actual_productivity)
-
+            
             if meters_target <= 0:
-                raw_installers.append(1)
+                ideal_installers.append(1)
             else:
                 installers_needed = max(1, int(np.ceil(meters_target / actual_productivity)))
-                raw_installers.append(installers_needed)
-
+                ideal_installers.append(installers_needed)
+            
             current_date += pd.Timedelta(days=1)
-
-        # Step 3: Smooth installer allocation using rolling median
-        window_size = 5
-        smoothed_installers = []
-
-        for i in range(len(raw_installers)):
-            start_idx = max(0, i - window_size // 2)
-            end_idx = min(len(raw_installers), i + window_size // 2 + 1)
-            window_values = raw_installers[start_idx:end_idx]
-            smoothed_value = int(np.median(window_values))
-            smoothed_installers.append(max(1, smoothed_value))
-
-        # Step 4: Generate initial schedule with rounded cumulative at each step
+        
+        # Step 4: Smooth installer allocation with practical constraints
+        smooth_installers = [initial_installers_subdiv]  # Start with allocated installers
+        
+        for d in range(1, total_days):
+            ideal_today = ideal_installers[d]
+            previous_installers = smooth_installers[d-1]
+            
+            # Calculate maximum allowed change (15% of previous day)
+            max_change = max(1, int(previous_installers * max_installer_change_pct))
+            
+            # Determine target installers with constraints
+            if ideal_today > previous_installers:
+                target_installers = min(ideal_today, previous_installers + max_change)
+            elif ideal_today < previous_installers:
+                target_installers = max(ideal_today, previous_installers - max_change)
+            else:
+                target_installers = previous_installers
+            
+            target_installers = max(1, target_installers)
+            smooth_installers.append(target_installers)
+        
+        # Step 5: Generate schedule with actual meter installation
         current_date = start_date
-        cumulative = float(installed)  # Keep as float for calculations
+        cumulative = float(installed)
         schedule_data = []
-
+        actual_meters_installed = []
+        
         for d in range(total_days):
             if int(round(cumulative)) >= total_meters:
                 break
-
-            meters_target = meter_distribution[d]
-            if meters_target <= 0:
-                current_date += pd.Timedelta(days=1)
-                continue
-
-            # Get phase info
-            timeline_pct = d / total_days
+                
+            timeline_pct = d/total_days
             if timeline_pct < ramp_up_end:
                 phase = 'Ramp-up'
             elif timeline_pct > ramp_down_start:
                 phase = 'Ramp-down'
             else:
                 phase = 'Peak Execution'
-
+                
             actual_productivity = productivities[d]
             is_holiday = current_date.date() in holidays
-
-            # Use smoothed installer count
-            installers_today = smoothed_installers[d]
-
-            # Calculate meters installed
-            meters_today = min(installers_today * actual_productivity, total_meters - cumulative)
+            installers_today = smooth_installers[d]
+            
+            max_possible = installers_today * actual_productivity
+            meters_today = min(max_possible, total_meters - cumulative)
             cumulative += meters_today
-
-            # ROUND CUMULATIVE AT EACH ITERATION
-            cumulative_rounded = int(round(cumulative))
-
-            # Create notes
+            actual_meters_installed.append(meters_today)
+            
             notes = []
             if phase != 'Peak Execution':
                 notes.append(phase)
             if is_holiday:
                 notes.append('Holiday')
-
+                
             schedule_data.append({
                 'Date': current_date,
                 'SubDiv': subdiv,
                 'SubDivCode': subdiv_code,
                 'Total_Meters': total_meters,
-                'Meters_Installed_Today': int(round(meters_today)),  # Also round daily meters
-                'Cumulative_Meters_Installed': cumulative_rounded,
+                'Meters_Installed_Today': int(round(meters_today)),
+                'Cumulative_Meters_Installed': int(round(cumulative)),
                 'Installers': installers_today,
                 'Productivity': actual_productivity,
                 'Phase': phase,
                 'Notes': ', '.join(notes) if notes else None
             })
-
+            
             current_date += pd.Timedelta(days=1)
-
-        # Step 5: POST-PROCESS to ensure 100% completion
+        
+        # Step 6: Handle shortfall with gradual adjustment
         df_temp = pd.DataFrame(schedule_data)
-        total_installed = df_temp['Meters_Installed_Today'].sum()
+        total_installed = sum(actual_meters_installed)
         shortfall = remaining - total_installed
-
+        
         if shortfall > 0:
-            # Find the last 20% of working days (non-holidays) to distribute shortfall
-            non_holiday_mask = ~df_temp['Notes'].str.contains('Holiday', na=False)
-            last_20_percent = int(len(df_temp) * 0.8)
-            adjustment_candidates = df_temp.iloc[last_20_percent:][non_holiday_mask]
-
-            if len(adjustment_candidates) > 0:
-                # Distribute shortfall across these days
-                per_day_adjustment = shortfall / len(adjustment_candidates)
-
-                for idx in adjustment_candidates.index:
-                    additional_meters = min(int(round(per_day_adjustment)), shortfall)
-                    current_productivity = df_temp.loc[idx, 'Productivity']
-                    additional_installers = int(np.ceil(additional_meters / current_productivity))
-
-                    # Update the record
-                    df_temp.loc[idx, 'Meters_Installed_Today'] += additional_meters
-                    df_temp.loc[idx, 'Installers'] += additional_installers
-                    shortfall -= additional_meters
-
-                    if shortfall <= 0:
-                        break
-
-                # Recalculate cumulative with rounding at each step
+            non_holiday_indices = []
+            for idx, row in df_temp.iterrows():
+                if not (row['Notes'] and 'Holiday' in str(row['Notes'])):
+                    non_holiday_indices.append(idx)
+            
+            if non_holiday_indices:
+                base_increase = shortfall // len(non_holiday_indices)
+                remainder = shortfall % len(non_holiday_indices)
+                
+                for i, idx in enumerate(non_holiday_indices):
+                    additional_meters = base_increase + (1 if i < remainder else 0)
+                    
+                    if additional_meters > 0:
+                        current_meters = df_temp.loc[idx, 'Meters_Installed_Today']
+                        current_installers = df_temp.loc[idx, 'Installers']
+                        current_productivity = df_temp.loc[idx, 'Productivity']
+                        
+                        new_total_meters = current_meters + additional_meters
+                        required_installers = int(np.ceil(new_total_meters / current_productivity))
+                        
+                        max_installers = int(current_installers * (1 + max_installer_change_pct * 2))
+                        final_installers = min(required_installers, max_installers)
+                        
+                        max_additional = (final_installers * current_productivity) - current_meters
+                        actual_additional = min(additional_meters, max_additional)
+                        
+                        df_temp.loc[idx, 'Meters_Installed_Today'] += int(actual_additional)
+                        df_temp.loc[idx, 'Installers'] = final_installers
+                
                 cumulative_recalc = float(installed)
                 for idx in df_temp.index:
                     cumulative_recalc += df_temp.loc[idx, 'Meters_Installed_Today']
                     df_temp.loc[idx, 'Cumulative_Meters_Installed'] = int(round(cumulative_recalc))
-
+        
         all_results.extend(df_temp.to_dict('records'))
+    
+    final_df = pd.DataFrame(all_results).sort_values(by='Date')
+    return final_df
 
-    return pd.DataFrame(all_results)
-
-
-
-### How to Use the Function
-
-
-# Plotting functions (converted to Plotly)
+# Plotting functions (unchanged)
 def plot_installation_curve(schedule_df, selected_subdivs=None):
     df = schedule_df.copy()
     if selected_subdivs is None:
@@ -402,9 +291,6 @@ def plot_monthly_installation(schedule_df, selected_subdivs=None):
         color='SubDiv',
         barmode='group',
         text='Label',
-        # text='Meters_Installed_Today',
-        #monthly_data['Label'] = monthly_data['Meters_Installed_Today'].astype(int).astype(str) + ' mtrs',
-
         title='Monthly Meter Installation',
         labels={'Month_Name': 'Month', 'Meters_Installed_Today': 'Meters Installed'}
     )
@@ -439,76 +325,43 @@ def plot_installer_requirements(schedule_df, selected_subdivs=None):
     
     fig = go.Figure()
     colors = px.colors.qualitative.Plotly
-    # for i, subdiv in enumerate(selected_subdivs):
-    #     sub_data = monthly_installers[monthly_installers['SubDiv'] == subdiv]
-    #     fig.add_trace(go.Scatter(
-    #         x=sub_data['Month_Name'],
-    #         y=sub_data['Avg_Installers'],
-    #         name=f'{subdiv} - Avg Daily',
-    #         mode='lines+markers',
-    #         marker=dict(size=8, color=colors[i % len(colors)]),
-    #         line=dict(width=2, color=colors[i % len(colors)])
-    #     ))
-    #     #--->aman you have change below
-    #     fig.add_trace(go.Scatter(
-    #         x=sub_data['Month_Name'],
-    #         y=sub_data['Max_Installers'],
-    #         name=f'{subdiv} - Peak Daily',
-    #         mode='lines+markers',
-    #         marker=dict(size=8, color=colors[(i + 1) % len(colors)]),
-    #         line=dict(width=2, dash='dash')
-    #     ))
     
-    # fig.update_layout(
-    #     title=dict(text='Monthly Installer Requirements', x=0.5, xanchor='center'),
-    #     xaxis_title='Month',
-    #     yaxis_title='Installers',
-    #     legend=dict(x=1.05, y=1, xanchor='left', yanchor='top'),
-    #     template='plotly_white',
-    #     height=600,
-    #     margin=dict(t=80, b=50, l=50, r=50),
-    #     xaxis=dict(tickangle=45),
-    #     yaxis=dict(gridcolor='lightgray'),
-    #     hovermode='x unified'
-    # )
     for i, subdiv in enumerate(selected_subdivs):
         sub_data = monthly_installers[monthly_installers['SubDiv'] == subdiv]
-        # fig.add_trace(go.Scatter(
-        #     x=sub_data['Month_Name'],
-        #     y=sub_data['Avg_Installers'],
-        #     name=f'{subdiv} - Avg Daily',
-        #     mode='lines+markers',
-        #     marker=dict(size=8, color=colors[i % len(colors)]),
-        #     line=dict(width=2, color=colors[i % len(colors)])
-        # ))
         fig.add_trace(go.Scatter(
             x=sub_data['Month_Name'],
             y=sub_data['Avg_Installers'],
             name=f'{subdiv} - Avg Daily',
-            mode='lines+markers+text',  # <--- Add 'text' here
-            text=sub_data['Avg_Installers'].round().astype(int).astype(str) ,  # <--- Show the values
-            textposition='top center',  # <--- Position the labels
-            
-
+            mode='lines+markers+text',
+            text=sub_data['Avg_Installers'].round().astype(int).astype(str),
+            textposition='top center',
             marker=dict(size=8, color=colors[i % len(colors)]),
             line=dict(width=2, color=colors[i % len(colors)])
         ))
-
-
-        fig.update_layout(
-            title=dict(text='Monthly Installer Requirements', x=0.5, xanchor='center'),
-            xaxis_title='Month',
-            yaxis_title='Installers',
-            legend=dict(x=1.05, y=1, xanchor='left', yanchor='top'),
-            template='plotly_white',
-            height=600,
-            margin=dict(t=80, b=50, l=50, r=50),
-            xaxis=dict(tickangle=45),
-            yaxis=dict(gridcolor='lightgray'),
-            hovermode='x unified',
-            showlegend=True
-        )
-
+        fig.add_trace(go.Scatter(
+            x=sub_data['Month_Name'],
+            y=sub_data['Max_Installers'],
+            name=f'{subdiv} - Max Daily',
+            mode='lines+markers+text',
+            text=sub_data['Max_Installers'].round().astype(int).astype(str),
+            textposition='bottom center',
+            marker=dict(size=8, color=colors[i % len(colors)]),
+            line=dict(width=2, dash='dash', color=colors[i % len(colors)])
+        ))
+    
+    fig.update_layout(
+        title=dict(text='Monthly Installer Requirements', x=0.5, xanchor='center'),
+        xaxis_title='Month',
+        yaxis_title='Installers',
+        legend=dict(x=1.05, y=1, xanchor='left', yanchor='top'),
+        template='plotly_white',
+        height=600,
+        margin=dict(t=80, b=50, l=50, r=50),
+        xaxis=dict(tickangle=45),
+        yaxis=dict(gridcolor='lightgray'),
+        hovermode='x unified',
+        showlegend=True
+    )
     return fig
 
 def plot_cumulative_progress(schedule_df, selected_subdivs=None):
@@ -520,20 +373,9 @@ def plot_cumulative_progress(schedule_df, selected_subdivs=None):
     
     df = df[df['SubDiv'].isin(selected_subdivs)]
     
-    # Cumulative Meters Plot
     fig1 = go.Figure()
     colors = px.colors.qualitative.Plotly
-    # for i croire, subdiv in enumerate(selected_subdivs):
 
-    #     subdiv_data = df[df['SubDiv'] == subdiv]
-    #     fig1.add_trace(go.Scatter(
-    #         x=subdiv_data['Date'],
-    #         y=subdiv_data['Cumulative_Meters_Installed'],
-    #         name=subdiv,
-    #         mode='lines+markers',
-    #         marker=dict(size=6, color=colors[i % len(colors)]),
-    #         line=dict(width=2, color=colors[i % len(colors)])
-    #     ))
     for i, subdiv in enumerate(selected_subdivs):
         subdiv_data = df[df['SubDiv'] == subdiv]
         fig1.add_trace(go.Scatter(
@@ -544,9 +386,7 @@ def plot_cumulative_progress(schedule_df, selected_subdivs=None):
             marker=dict(size=6, color=colors[i % len(colors)]),
             line=dict(width=2, color=colors[i % len(colors)])
         ))
-
     
-    # Progress Percentage Plot
     fig2 = go.Figure()
     for i, subdiv in enumerate(selected_subdivs):
         subdiv_data = df[df['SubDiv'] == subdiv]
@@ -635,9 +475,13 @@ def render_sidebar():
             st.subheader("Slow Days")
             use_default_slow_days = st.checkbox("Use Empty Slow Days", value=True, key="slow_days_check")
             if not use_default_slow_days:
-                slow_days_input = st.text_area("Enter slow days (YYYY-MM-DD, one per line)", height=100, key="slow_days_input")
-                slow_days_list = [date.strip() for date in slow_days_input.split("\n") if date.strip()]
-                st.session_state.slow_days_df = pd.DataFrame(slow_days_list, columns=['slow_days']) if slow_days_list else pd.DataFrame(columns=['slow_days'])
+                slow_days_file = st.file_uploader("Upload Slow Days (CSV)", type="csv", key="slow_days_file")
+                if slow_days_file is not None:
+                    st.session_state.slow_days_df = pd.read_csv(slow_days_file, header=None, names=['slow_days'])
+                else:
+                    slow_days_input = st.text_area("Enter slow days (YYYY-MM-DD, one per line)", height=100, key="slow_days_input")
+                    slow_days_list = [date.strip() for date in slow_days_input.split("\n") if date.strip()]
+                    st.session_state.slow_days_df = pd.DataFrame(slow_days_list, columns=['slow_days']) if slow_days_list else pd.DataFrame(columns=['slow_days'])
             else:
                 st.session_state.slow_days_df = slow_days_df
 
@@ -648,6 +492,21 @@ def render_sidebar():
                 start_date = st.date_input("Start Date", value=st.session_state.get('start_date', datetime(2024, 8, 1)), key="start_date")
             with col2:
                 end_date = st.date_input("End Date", value=st.session_state.get('end_date', datetime(2026, 1, 31)), key="end_date")
+            
+            st.markdown("**Installer Settings**")
+            initial_installers = st.number_input(
+                "Initial Installers (Total)", 
+                value=st.session_state.get('initial_installers', 50), 
+                min_value=1, 
+                step=1, 
+                key="initial_installers"
+            )
+            max_installer_change_pct = st.slider(
+                "Max Daily Installer Change (%)", 
+                5, 50, 
+                int(st.session_state.get('max_installer_change_pct', 0.15) * 100), 
+                key="max_installer_change_pct"
+            )
             
             st.markdown("**Productivity Settings**")
             base_productivity = st.number_input(
@@ -705,11 +564,6 @@ def render_sidebar():
                 st.session_state.get('slow_period_factor', 0.7), 
                 step=0.1
             )
-            # is_slow_day = st.selectbox(
-            #     "Apply Slow Day to All Days", 
-            #     ["No", "Yes"], 
-            #     index=0 if st.session_state.get('is_slow_day', 'No') == 'No' else 1
-            # )
 
 # Initialize session state
 if 'data' not in st.session_state:
@@ -735,6 +589,10 @@ if 'start_date' not in st.session_state:
     st.session_state.start_date = datetime(2024, 8, 1)
 if 'end_date' not in st.session_state:
     st.session_state.end_date = datetime(2026, 1, 31)
+if 'initial_installers' not in st.session_state:
+    st.session_state.initial_installers = 50
+if 'max_installer_change_pct' not in st.session_state:
+    st.session_state.max_installer_change_pct = 0.15
 if 'base_productivity' not in st.session_state:
     st.session_state.base_productivity = 7.0
 if 'ramp_up_period' not in st.session_state:
@@ -749,8 +607,6 @@ if 'holiday_factor' not in st.session_state:
     st.session_state.holiday_factor = 0.1
 if 'slow_period_factor' not in st.session_state:
     st.session_state.slow_period_factor = 0.7
-if 'is_slow_day' not in st.session_state:
-    st.session_state.is_slow_day = 'No'
 
 # Page definitions
 def home_page():
@@ -779,8 +635,8 @@ def home_page():
         
         ### Key Features
         - **Bell-shaped meter distribution**: Realistic ramp-up and ramp-down phases.
-        - **Holiday and slow day adjustments**: Accounts for reduced productivity.
-        - **Installer constraints**: Maintains consistent installer counts on holidays.
+        - **Holiday adjustments**: Accounts for reduced productivity.
+        - **Installer constraints**: Smooth transitions with max 15% daily change.
         - **Interactive visualizations**: Plotly charts for detailed analysis.
         - **Export capabilities**: Download schedules and charts.
         """)
@@ -823,7 +679,7 @@ def data_preview_page():
             st.success("Holiday data updated!")
     
     with st.expander("🐢 Slow Days", expanded=True):
-        st.markdown("Dates with reduced productivity (e.g., weather or supply issues).")
+        st.markdown("Dates with reduced productivity (e.g., weather or supply issues). Note: Slow days are not currently used in scheduling but can be uploaded for future compatibility.")
         if st.session_state.slow_days_df.empty:
             st.info("No slow days currently defined.")
         else:
@@ -853,6 +709,7 @@ def schedule_page():
             st.metric("Start Date", st.session_state.start_date.strftime('%Y-%m-%d'))
             st.metric("Base Productivity", f"{st.session_state.base_productivity} meters/installer/day")
             st.metric("Ramp-up Period", f"{st.session_state.ramp_up_period}%")
+            st.metric("Initial Installers", st.session_state.initial_installers)
         with col2:
             st.metric("End Date", st.session_state.end_date.strftime('%Y-%m-%d'))
             st.metric("Saturation Threshold", f"{int(st.session_state.saturation_threshold*100)}%")
@@ -865,13 +722,12 @@ def schedule_page():
     if st.button("✨ Generate Schedule", type="primary", use_container_width=True):
         with st.spinner("Generating schedule..."):
             try:
-                st.session_state.schedule_df = bell_curve_meters_schedule_holiday_cap_all(
+                st.session_state.schedule_df = bell_curve_meters_schedule_smooth_practical(
                     sub_mru_df=st.session_state.data,
                     holiday_df=st.session_state.all_holidays,
-                    slow_days_df=st.session_state.slow_days_df,
                     start_date=st.session_state.start_date,
                     end_date=st.session_state.end_date,
-                    selected_subdivs=st.session_state.selected_subdivs,
+                    initial_installers=st.session_state.initial_installers,
                     base_productivity=st.session_state.base_productivity,
                     ramp_up_period=st.session_state.ramp_up_period,
                     saturation_threshold=st.session_state.saturation_threshold,
@@ -879,7 +735,7 @@ def schedule_page():
                     ramp_down_factor=st.session_state.ramp_down_factor,
                     holiday_factor=st.session_state.holiday_factor,
                     slow_period_factor=st.session_state.slow_period_factor,
-                    is_slow_day=st.session_state.is_slow_day
+                    max_installer_change_pct=st.session_state.max_installer_change_pct / 100
                 )
                 
                 st.success("Schedule generated successfully!")
@@ -887,9 +743,9 @@ def schedule_page():
                 installed = st.session_state.schedule_df.groupby('SubDiv')['Cumulative_Meters_Installed'].last().sum()
                 completion_percent = (installed / total_meters) * 100
                 max_installers = st.session_state.schedule_df['Installers'].max()
-                end_date=st.session_state.schedule_df['Date'].max().date()
+                end_date = st.session_state.schedule_df['Date'].max().date()
                 
-                col1, col2, col3,col4 = st.columns(4)
+                col1, col2, col3, col4 = st.columns(4)
                 with col1:
                     st.markdown(f"""
                     <div style="font-size: 14px;">
@@ -919,9 +775,7 @@ def schedule_page():
                     </div>
                     """, unsafe_allow_html=True)
                 st.markdown("---")
-               
-
-
+                
                 st.session_state.schedule_df['Date'] = pd.to_datetime(st.session_state.schedule_df['Date'])
                 days_required_df = (
                     st.session_state.schedule_df
@@ -935,15 +789,12 @@ def schedule_page():
                     )
                     .reset_index()
                 )
-
-                # Convert End_Date to just date (remove time)
+                
                 days_required_df['End_Date'] = days_required_df['End_Date'].dt.date
-
-                # Streamlit display
+                
                 st.subheader("📅 Summary")
                 st.dataframe(days_required_df, use_container_width=True)
-
-                # CSV download
+                
                 csv = days_required_df.to_csv(index=False)
                 st.download_button(
                     label="📥 Download Days Required as CSV",
@@ -971,47 +822,21 @@ def schedule_page():
             except Exception as e:
                 st.error(f"❌ Error generating schedule: {str(e)}")
     
-    # elif st.session_state.schedule_df is not None:
-    #     st.subheader("Existing Schedule")
-    #     st.info("A previously generated schedule exists. Regenerate with new parameters or view visualizations.")
-        
-    #     total_meters = st.session_state.schedule_df.groupby('SubDiv')['Total_Meters'].first().sum()
-    #     installed = st.session_state.schedule_df.groupby('SubDiv')['Cumulative_Meters_Installed'].last().sum()
-    #     completion_percent = (installed / total_meters) * 100
-        
-    #     col1, col2 = st.columns(2)
-    #     col1.metric("Total Meters in Schedule", f"{total_meters:,}")
-    #     col2.metric("Scheduled for Installation", f"{installed:,} ({completion_percent:.1f}%)")
-        
-    #     st.dataframe(st.session_state.schedule_df, height=400, use_container_width=True)
-        
-    #     csv = st.session_state.schedule_df.to_csv(index=False)
-    #     st.download_button(
-    #         label="📥 Download Schedule as CSV",
-    #         data=csv,
-    #         file_name="installation_schedule.csv",
-    #         mime="text/csv",
-    #         use_container_width=True
-    #     )
     elif st.session_state.schedule_df is not None:
         st.subheader("Existing Schedule")
         st.info("A previously generated schedule exists. Regenerate with new parameters or view visualizations.")
         
-        # Safely ensure 'Date' column is datetime
         if not pd.api.types.is_datetime64_any_dtype(st.session_state.schedule_df['Date']):
             st.session_state.schedule_df['Date'] = pd.to_datetime(st.session_state.schedule_df['Date'])
-
-        # Compute total meters and installed meters
+        
         total_meters = st.session_state.schedule_df.groupby('SubDiv')['Total_Meters'].first().sum()
         installed = st.session_state.schedule_df.groupby('SubDiv')['Cumulative_Meters_Installed'].last().sum()
         completion_percent = (installed / total_meters) * 100
         
-        # Show metrics
         col1, col2 = st.columns(2)
         col1.metric("Total Meters in Schedule", f"{total_meters:,}")
         col2.metric("Scheduled for Installation", f"{installed:,} ({completion_percent:.1f}%)")
-
-        st.session_state.schedule_df['Date'] = pd.to_datetime(st.session_state.schedule_df['Date'])
+        
         days_required_df = (
             st.session_state.schedule_df
             .groupby('SubDiv')
@@ -1024,13 +849,12 @@ def schedule_page():
             )
             .reset_index()
         )
-
-        # Convert End_Date to just date (remove time)
+        
         days_required_df['End_Date'] = days_required_df['End_Date'].dt.date
-
+        
         st.subheader("📅 Summary")
-        st.dataframe(days_required_df,use_container_width=True)
-
+        st.dataframe(days_required_df, use_container_width=True)
+        
         csv_days = days_required_df.to_csv(index=False)
         st.download_button(
             label="📥 Download Days Required as CSV",
@@ -1041,7 +865,7 @@ def schedule_page():
         )
         st.subheader("📋 Schedule Preview")
         st.dataframe(st.session_state.schedule_df, height=400, use_container_width=True)
-
+        
         csv_schedule = st.session_state.schedule_df.to_csv(index=False)
         st.download_button(
             label="📥 Download Schedule as CSV",
@@ -1050,9 +874,8 @@ def schedule_page():
             mime="text/csv",
             use_container_width=True
         )
-
+        
         st.markdown("---")
-
 
 def visualizations_page():
     st.title("📈 Visualizations")
@@ -1070,7 +893,7 @@ def visualizations_page():
     with st.expander("🔧 Visualization Controls", expanded=True):
         st.subheader("Chart Options")
         plot_options = [
-            
+            "Bell-Shaped Installation Curve",
             "Monthly Meter Installation",
             "Monthly Installer Requirements",
             "Cumulative Progress"
@@ -1078,7 +901,7 @@ def visualizations_page():
         st.session_state.selected_plots = [
             p for p in st.session_state.get("selected_plots", []) if p in plot_options
         ]
-
+        
         st.session_state.selected_plots = st.multiselect(
             "Select charts to display:",
             options=plot_options,
@@ -1092,16 +915,14 @@ def visualizations_page():
         with st.container():
             st.subheader(plot)
             
-            # if plot == "Bell-Shaped Installation Curve":
-            #     st.markdown("""
-            #     **Daily installation progress** showing the bell-shaped curve with:
-            #     - **Solid line**: Meters installed each day
-            #     - **Dashed line**: Installer count (scaled)
-            #     """)
-            #     fig = plot_installation_curve(st.session_state.schedule_df, st.session_state.selected_subdivs)
-            #     st.plotly_chart(fig, use_container_width=True)
+            if plot == "Bell-Shaped Installation Curve":
+                st.markdown("""
+                **Daily installation rates** compared to scaled installer counts.
+                """)
+                fig = plot_installation_curve(st.session_state.schedule_df, st.session_state.selected_subdivs)
+                st.plotly_chart(fig, use_container_width=True)
                 
-            if plot == "Monthly Meter Installation":
+            elif plot == "Monthly Meter Installation":
                 st.markdown("""
                 **Monthly totals** showing installation volume by subdivision.
                 """)
