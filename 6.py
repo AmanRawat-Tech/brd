@@ -295,6 +295,63 @@ def plot_monthly_installation(schedule_df, selected_subdivs=None):
     )
     return fig
 
+# def plot_installer_requirements(schedule_df, selected_subdivs=None):
+#     df = schedule_df.copy()
+#     df['Month'] = df['Date'].dt.to_period('M')
+#     df['Month_Name'] = df['Date'].dt.strftime('%b-%Y')
+    
+#     if selected_subdivs is None:
+#         selected_subdivs = df['SubDiv'].unique()
+#     elif isinstance(selected_subdivs, str):
+#         selected_subdivs = [selected_subdivs]
+    
+#     monthly_installers = df[df['SubDiv'].isin(selected_subdivs)].groupby(
+#         ['Month', 'Month_Name', 'SubDiv']).agg({
+#             'Installers': ['mean', 'max']
+#         }).reset_index()
+#     monthly_installers.columns = ['Month', 'Month_Name', 'SubDiv', 'Avg_Installers', 'Max_Installers']
+#     monthly_installers = monthly_installers.sort_values('Month').reset_index(drop=True)
+    
+#     fig = go.Figure()
+#     colors = px.colors.qualitative.Plotly
+    
+#     for i, subdiv in enumerate(selected_subdivs):
+#         sub_data = monthly_installers[monthly_installers['SubDiv'] == subdiv]
+#         fig.add_trace(go.Scatter(
+#             x=sub_data['Month_Name'],
+#             y=sub_data['Avg_Installers'],
+#             name=f'{subdiv} - Avg Daily',
+#             mode='lines+markers+text',
+#             text=sub_data['Avg_Installers'].round().astype(int).astype(str),
+#             textposition='top center',
+#             marker=dict(size=8, color=colors[i % len(colors)]),
+#             line=dict(width=2, color=colors[i % len(colors)])
+#         ))
+#         fig.add_trace(go.Scatter(
+#             x=sub_data['Month_Name'],
+#             y=sub_data['Max_Installers'],
+#             name=f'{subdiv} - Max Daily',
+#             mode='lines+markers+text',
+#             text=sub_data['Max_Installers'].round().astype(int).astype(str),
+#             textposition='bottom center',
+#             marker=dict(size=8, color=colors[i % len(colors)]),
+#             line=dict(width=2, dash='dash', color=colors[i % len(colors)])
+#         ))
+    
+#     fig.update_layout(
+#         title=dict(text='Monthly Installer Requirements', x=0.5, xanchor='center'),
+#         xaxis_title='Month',
+#         yaxis_title='Installers',
+#         legend=dict(x=1.05, y=1, xanchor='left', yanchor='top'),
+#         template='plotly_white',
+#         height=600,
+#         margin=dict(t=80, b=50, l=50, r=50),
+#         xaxis=dict(tickangle=45),
+#         yaxis=dict(gridcolor='lightgray'),
+#         hovermode='x unified',
+#         showlegend=True
+#     )
+#     return fig
 def plot_installer_requirements(schedule_df, selected_subdivs=None):
     df = schedule_df.copy()
     df['Month'] = df['Date'].dt.to_period('M')
@@ -306,10 +363,11 @@ def plot_installer_requirements(schedule_df, selected_subdivs=None):
         selected_subdivs = [selected_subdivs]
     
     monthly_installers = df[df['SubDiv'].isin(selected_subdivs)].groupby(
-        ['Month', 'Month_Name', 'SubDiv']).agg({
-            'Installers': ['mean', 'max']
-        }).reset_index()
-    monthly_installers.columns = ['Month', 'Month_Name', 'SubDiv', 'Avg_Installers', 'Max_Installers']
+        ['Month', 'Month_Name', 'SubDiv']
+    ).agg({
+        'Installers': 'mean'
+    }).reset_index()
+    monthly_installers.columns = ['Month', 'Month_Name', 'SubDiv', 'Avg_Installers']
     monthly_installers = monthly_installers.sort_values('Month').reset_index(drop=True)
     
     fig = go.Figure()
@@ -327,21 +385,11 @@ def plot_installer_requirements(schedule_df, selected_subdivs=None):
             marker=dict(size=8, color=colors[i % len(colors)]),
             line=dict(width=2, color=colors[i % len(colors)])
         ))
-        fig.add_trace(go.Scatter(
-            x=sub_data['Month_Name'],
-            y=sub_data['Max_Installers'],
-            name=f'{subdiv} - Max Daily',
-            mode='lines+markers+text',
-            text=sub_data['Max_Installers'].round().astype(int).astype(str),
-            textposition='bottom center',
-            marker=dict(size=8, color=colors[i % len(colors)]),
-            line=dict(width=2, dash='dash', color=colors[i % len(colors)])
-        ))
     
     fig.update_layout(
-        title=dict(text='Monthly Installer Requirements', x=0.5, xanchor='center'),
+        title=dict(text='Monthly Installer Requirements (Average Only)', x=0.5, xanchor='center'),
         xaxis_title='Month',
-        yaxis_title='Installers',
+        yaxis_title='Avg Daily Installers',
         legend=dict(x=1.05, y=1, xanchor='left', yanchor='top'),
         template='plotly_white',
         height=600,
@@ -1030,11 +1078,11 @@ def visualizations_page():
         )
     else:
         # Detailed charts for selected subdivisions
-        render_chart(
-            "Bell-Shaped Installation Curve",
-            plot_installation_curve(st.session_state.schedule_df, st.session_state.selected_subdivs),
-            "**Daily installation rates** compared to scaled installer counts for selected subdivisions."
-        )
+        # render_chart(
+        #     "Bell-Shaped Installation Curve",
+        #     plot_installation_curve(st.session_state.schedule_df, st.session_state.selected_subdivs),
+        #     "**Daily installation rates** compared to scaled installer counts for selected subdivisions."
+        # )
         render_chart(
             "Monthly Meter Installation",
             plot_monthly_installation(st.session_state.schedule_df, st.session_state.selected_subdivs),
